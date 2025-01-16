@@ -26,7 +26,7 @@ def template_Job(content, params):
     if job: return job
     return "Cloud Engineer"
 
-def template_Hr(content, params):
+def template_HR(content, params):
     hr = params["HR"]
     if hr: return hr
     return f"{template_Company(content, params)} Recruitment Team"
@@ -72,46 +72,44 @@ def apply_template(match, name, func, params):
     res = func(content, params)
     return res
 
-def make_pdf(id, params, do_pdf = True):
-    source = f'./templates/{id}/{id}.docx.html'
+def make_pdf(id, params, do_html = True, do_pdf = True):
+    source = f'./data/templates/{id}/{id}.docx.html'
     source = os.path.abspath(source)
 
-
-    with open(source, 'r', encoding='utf-8') as file:
-        content = file.read()
-
-    with open("style.html", 'r', encoding='utf-8') as file:
-        style = file.read()
-
-    content = content.replace("</head>", "</head>" + style, 1)
-
-    prefix = "template_"
-    funcs = [(name[len(prefix):], func) for name, func in get_functions().items() if name.startswith(prefix)]
-
-    for open_smb, close_smb in [("(", ")"), ("[", "]"), ("{", "}"), ]:
-        for name, func in funcs:
-            template_partial = partial(apply_template, name=name, func=func, params=params)
-            pattern = r"#{}{}(.*?){}".format(name, re.escape(open_smb), re.escape(close_smb))
-            content = re.sub(pattern, template_partial, content, flags=re.DOTALL)
-
-        # pattern = "#" + name + r"\((.*?)\)"
-        # content = re.sub(pattern, template_partial, content)
-
-    content = BeautifulSoup(content, 'html.parser')
-    content = content.prettify()
-
-
-    medi = f'./templates/{id}/{id}.html'
+    medi = f'./data/templates/{id}/{id}.html'
     medi = os.path.abspath(medi)
 
+    if do_html:
+        with open(source, 'r', encoding='utf-8') as file:
+            content = file.read()
 
-    with open(medi, 'w') as file:
-        file.write(content)
+        with open("style.html", 'r', encoding='utf-8') as file:
+            style = file.read()
+
+        content = content.replace("</head>", "</head>" + style, 1)
+
+        prefix = "template_"
+        funcs = [(name[len(prefix):], func) for name, func in get_functions().items() if name.startswith(prefix)]
+
+        for open_smb, close_smb in [("(", ")"), ("[", "]"), ("{", "}"), ]:
+            for name, func in funcs:
+                template_partial = partial(apply_template, name=name, func=func, params=params)
+                pattern = r"#{}{}(.*?){}".format(name, re.escape(open_smb), re.escape(close_smb))
+                content = re.sub(pattern, template_partial, content, flags=re.DOTALL)
+
+            # pattern = "#" + name + r"\((.*?)\)"
+            # content = re.sub(pattern, template_partial, content)
+
+        content = BeautifulSoup(content, 'html.parser')
+        content = content.prettify()
+
+        with open(medi, 'w') as file:
+            file.write(content)
 
 
     if do_pdf:
         medi = f'file:///{medi}'
-        dest = f'./outputs/{camel_case_to_readable(id)}.pdf'
+        dest = f'./data/outputs/{camel_case_to_readable(id)}.pdf'
 
         print_options={
             "marginTop"   : 0,
@@ -162,7 +160,7 @@ class App:
             row = self.get_raw_data(i)
             res.append(row)
 
-        with open('data.yaml', 'w') as file:
+        with open('./data/data.yaml', 'w') as file:
             yaml.dump(res, file, default_flow_style=False, allow_unicode=True)
 
     def on_focus_in(self, event):
@@ -197,22 +195,30 @@ class App:
         button_frame = ttk.Frame(root)
         button_frame.pack(fill=tk.X)
 
-        add_row_button = ttk.Button(button_frame, text="Add", command=self.add_row)
-        add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
-
         submit_button = ttk.Button(button_frame, text="Print", command=self.print_active_row)
         submit_button.pack(side=tk.LEFT, padx=10, pady=10)
 
-        add_row_button = ttk.Button(button_frame, text="Documents", command=self.create_docs)
+        add_row_button = ttk.Button(button_frame, text="Print all", command=self.print_all)
+        add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
+
+        button_frame = ttk.Frame(root)
+        button_frame.pack(fill=tk.X)
+
+        add_row_button = ttk.Button(button_frame, text="Add", command=self.add_row)
         add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
 
         add_row_button = ttk.Button(button_frame, text="Today", command=self.set_today)
         add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
 
+        add_row_button = ttk.Button(button_frame, text="Only pdf", command=self.only_make_pdf)
+        add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
         
-        self.cols = ["Title", "Company", "Job", "HR", "Value", "Date"]
+        add_row_button = ttk.Button(button_frame, text="Documents", command=self.create_docs)
+        add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
+
+        self.cols = ["Company", "Title", "Job", "HR", "Value", "Date"]
         self.entries = []
-        with open('data.yaml', 'r') as file:
+        with open('./data/data.yaml', 'r') as file:
             data = yaml.safe_load(file)
 
         i = -1
@@ -252,12 +258,6 @@ class App:
         for key, value in row.items():
             print(f"  {key}: {value}") # self.entries[row][j].get()
 
-    def create_docs(self):
-        # make_pdf("PavelEreskoCV", self.get_current_row())
-        # make_pdf("PavelEreskoCoverLetter", self.get_current_row())
-        make_pdf("Test", self.get_current_row())
-        print("docs created")
-
     def set_today(self):
         num = self.get_current_row_number()
         row = self.entries[num]
@@ -267,6 +267,26 @@ class App:
         entry.delete(0, 'end')
         entry.insert(0, datetime.today().strftime("%d.%m.%y"))
         
+    def print_all(self):
+        lines = ""
+        for i in range(len(self.entries)):
+            row = self.get_raw_data(i)
+            lines += "\t".join(map(str, row.values())) + "\n"
+        
+        with open("./data/data.txt", "w", encoding="utf-8") as file:
+            file.write(lines)
+
+    def create_docs(self):
+        # make_pdf("Test", self.get_current_row())
+        make_pdf("PavelEreskoCV", self.get_current_row())
+        make_pdf("PavelEreskoCoverLetter", self.get_current_row())
+        print("documents are created")
+
+    def only_make_pdf(self):
+        # make_pdf("Test", self.get_current_row())
+        make_pdf("PavelEreskoCV", self.get_current_row(), False, True)
+        make_pdf("PavelEreskoCoverLetter", self.get_current_row(), False, True)
+        print("pdfs are created")
 
 root = tk.Tk()
 app = App(root)
