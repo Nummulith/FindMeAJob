@@ -160,7 +160,7 @@ class App:
             row = self.get_raw_data(i)
             res.append(row)
 
-        with open('./data/data.yaml', 'w') as file:
+        with open('./data/data.yaml', 'w', encoding='utf-8') as file:
             yaml.dump(res, file, default_flow_style=False, allow_unicode=True)
 
     def on_focus_in(self, event):
@@ -218,7 +218,7 @@ class App:
 
         self.cols = ["Company", "Title", "Job", "HR", "Value", "Date"]
         self.entries = []
-        with open('./data/data.yaml', 'r') as file:
+        with open('./data/data.yaml', 'r', encoding='utf-8') as file:
             data = yaml.safe_load(file)
 
         i = -1
