@@ -8,6 +8,7 @@ import inspect
 
 from pyhtml2pdf import converter
 from bs4 import BeautifulSoup
+from urllib.parse import urlparse, parse_qs, unquote
 from functools import partial
 from datetime import datetime
 
@@ -72,6 +73,27 @@ def apply_template(match, name, func, params):
     res = func(content, params)
     return res
 
+def clean_google_redirects(html: str) -> str:
+    soup = BeautifulSoup(html, "html.parser")
+    for a in soup.find_all('a', href=True):
+        href = a['href']
+        parsed = urlparse(href)
+
+        # Очистка редиректа Google
+        if parsed.netloc == 'www.google.com' and parsed.path == '/url':
+            qs = parse_qs(parsed.query)
+            real_url = qs.get('q', [None])[0]
+            if real_url:
+                href = unquote(real_url)
+                a['href'] = href
+                parsed = urlparse(href)  # перепарсим для следующего шага
+
+        # Добавим target="_blank" к внешним ссылкам
+        if parsed.scheme in ('http', 'https') and not href.startswith(('#', 'mailto:', 'javascript:')):
+            a['target'] = '_blank'
+
+    return str(soup.prettify())
+
 def make_pdf(id, params, do_html = True, do_pdf = True):
     source = f'./data/templates/{id}/{id}.docx.html'
     source = os.path.abspath(source)
@@ -100,8 +122,7 @@ def make_pdf(id, params, do_html = True, do_pdf = True):
             # pattern = "#" + name + r"\((.*?)\)"
             # content = re.sub(pattern, template_partial, content)
 
-        content = BeautifulSoup(content, 'html.parser')
-        content = content.prettify()
+        content = clean_google_redirects(content)
 
         with open(medi, 'w') as file:
             file.write(content)
