@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import yaml
 
 import os
@@ -124,7 +124,7 @@ def make_pdf(id, params, do_html = True, do_pdf = True):
 
         content = clean_google_redirects(content)
 
-        with open(medi, 'w') as file:
+        with open(medi, 'w', encoding='utf-8') as file:
             file.write(content)
 
 
@@ -161,7 +161,7 @@ class App:
         if widget:
             pass
         else:
-            print("No active row found.")
+            print("No selected line")
             return None
 
         for i, row_entries in enumerate(self.entries):
@@ -216,26 +216,39 @@ class App:
         button_frame = ttk.Frame(root)
         button_frame.pack(fill=tk.X)
 
-        submit_button = ttk.Button(button_frame, text="Print", command=self.print_active_row)
-        submit_button.pack(side=tk.LEFT, padx=10, pady=10)
+        btn = ttk.Button(button_frame, text="Today", command=self.set_today)
+        btn.pack(side=tk.LEFT, padx=10, pady=10)
 
-        add_row_button = ttk.Button(button_frame, text="Print all", command=self.print_all)
-        add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
+        btn = ttk.Button(button_frame, text="Only html", command=self.only_make_html)
+        btn.pack(side=tk.LEFT, padx=10, pady=10)
+        
+        btn = ttk.Button(button_frame, text="Only pdf", command=self.only_make_pdf)
+        btn.pack(side=tk.LEFT, padx=10, pady=10)
+        
+        btn = ttk.Button(button_frame, text="Print", command=self.print_active_row)
+        btn.pack(side=tk.LEFT, padx=10, pady=10)
+
+        btn = ttk.Button(button_frame, text="Print all", command=self.print_all)
+        btn.pack(side=tk.LEFT, padx=10, pady=10)
+
 
         button_frame = ttk.Frame(root)
         button_frame.pack(fill=tk.X)
 
-        add_row_button = ttk.Button(button_frame, text="Add", command=self.add_row)
-        add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
+        btn = ttk.Button(button_frame, text="Add", command=self.add_row)
+        btn.pack(side=tk.LEFT, padx=10, pady=10)
 
-        add_row_button = ttk.Button(button_frame, text="Today", command=self.set_today)
-        add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
+        self.language = tk.StringVar(value="")
 
-        add_row_button = ttk.Button(button_frame, text="Only pdf", command=self.only_make_pdf)
-        add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
-        
-        add_row_button = ttk.Button(button_frame, text="Documents", command=self.create_docs)
-        add_row_button.pack(side=tk.LEFT, padx=10, pady=10)
+        de_radio = ttk.Radiobutton(button_frame, text="De", variable=self.language, value="")
+        de_radio.pack(side=tk.LEFT, padx=5)
+
+        en_radio = ttk.Radiobutton(button_frame, text="En", variable=self.language, value="En")
+        en_radio.pack(side=tk.LEFT, padx=5)
+
+        btn = ttk.Button(button_frame, text="Documents", command=self.create_docs)
+        btn.pack(side=tk.LEFT, padx=10, pady=10)
+
 
         self.cols = ["Company", "Title", "Job", "HR", "Value", "Date"]
         self.entries = []
@@ -260,6 +273,8 @@ class App:
                 row_entries.append(entry)
 
             self.entries.append(row_entries)
+        
+        self.active_entry = None
 
     def add_row(self):
         new_row = []
@@ -281,6 +296,8 @@ class App:
 
     def set_today(self):
         num = self.get_current_row_number()
+        if num is None:
+            return
         row = self.entries[num]
         # row[self.cols.index("Date")].set(datetime.today().strftime("%d.%m.%y"))
 
@@ -297,16 +314,29 @@ class App:
         with open("./data/data.txt", "w", encoding="utf-8") as file:
             file.write(lines)
 
+    def process(self, do_html=True, do_pdf=True):
+        row_number = self.get_current_row_number()
+        if row_number is None:
+            messagebox.showinfo("Error", f"No selected line")
+            return
+
+        with open('FindMeAJob.cfg', 'r') as file:
+            for line in file:
+                template = f"{line.strip()}{self.language.get()}"
+                make_pdf(template, self.get_current_row(), do_html=do_html, do_pdf=do_pdf)
+
+        self.set_today()
+
     def create_docs(self):
-        # make_pdf("Test", self.get_current_row())
-        make_pdf("PavelEreskoCV", self.get_current_row())
-        make_pdf("PavelEreskoCoverLetter", self.get_current_row())
+        self.process()
         print("documents are created")
 
     def only_make_pdf(self):
-        # make_pdf("Test", self.get_current_row())
-        make_pdf("PavelEreskoCV", self.get_current_row(), False, True)
-        make_pdf("PavelEreskoCoverLetter", self.get_current_row(), False, True)
+        self.process(do_html=False, do_pdf=True)
+        print("pdfs are created")
+
+    def only_make_html(self):
+        self.process(do_html=True, do_pdf=False)
         print("pdfs are created")
 
 root = tk.Tk()
